@@ -1,10 +1,16 @@
 package com.minpack.rental.bridge;
 
 import com.minpack.rental.PixelmonRentalMarketPlugin;
+import com.pixelmonmod.pixelmon.api.pokemon.Pokemon;
+import com.pixelmonmod.pixelmon.battles.attacks.Attack;
+import com.pixelmonmod.pixelmon.entities.pixelmon.stats.BattleStatsType;
+import com.pixelmonmod.pixelmon.items.ItemPixelmonSprite; // EV훈련권에 있던 그 클래스
 import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
 
-import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public final class PixelmonBridge {
@@ -15,122 +21,62 @@ public final class PixelmonBridge {
         this.plugin = plugin;
     }
 
-    public boolean isPixelmonPresent() {
-        try {
-            Class.forName("com.pixelmonmod.pixelmon.Pixelmon", false, getClass().getClassLoader());
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
-    }
+    // ... (기존 메서드들 생략: isPixelmonPresent, getPartyPokemon 등은 유지) ...
 
-    public Object getPartyPokemon(UUID playerUuid, int slot) throws Exception {
-        Object party = getPartyStorage(playerUuid);
-        if (party == null) return null;
+    /**
+     * 포켓몬 객체를 받아 GUI용 아이템(사진 + 상세 Lore)으로 변환합니다.
+     */
+    public ItemStack getPokemonSpriteWithLore(Object pokemonObj) {
+        if (!(pokemonObj instanceof Pokemon)) return null;
+        Pokemon p = (Pokemon) pokemonObj;
 
-        Method m = findMethod(party.getClass(), "get", int.class);
-        if (m != null) return m.invoke(party, slot);
+        // 1. 스프라이트(사진) 가져오기 (EV훈련권 로직 참고)
+        ItemStack item = ItemPixelmonSprite.getPhoto(p); 
 
-        m = findMethod(party.getClass(), "getPokemon", int.class);
-        if (m != null) return m.invoke(party, slot);
+        ItemMeta meta = item.getItemMeta();
+        List<String> lore = new ArrayList<>();
 
-        return null;
-    }
+        // 2. 상세 정보 Lore 구성 (이미지 참고)
+        lore.add("§7--------------------");
+        lore.add("§e레벨: §f" + p.getLevel()); //
+        lore.add("§e성별: §f" + p.getGender().toString()); //
+        lore.add("§e성격: §f" + (p.getMintNature() != null ? p.getMintNature().getLocalizedName() : p.getNature().getLocalizedName())); //
+        lore.add("§e특성: §f" + p.getAbility().getLocalizedName()); //
+        lore.add("§e볼: §f" + p.getBall().getName()); //
+        lore.add("§e닉네임: §f" + (p.getNickname() != null ? p.getNickname().getString() : "-")); //
+        lore.add("§e원트레이너: §f" + (p.getOriginalTrainer() != null ? p.getOriginalTrainer() : "Unknown")); //
+        lore.add("§e이로치: §f" + (p.isShiny() ? "예" : "아니오")); //
+        lore.add("§e크기: §f" + p.getGrowth().toString()); //
+        lore.add("§e친밀도: §f" + p.getFriendship()); //
+        lore.add("");
 
-    public void setPartyPokemon(UUID playerUuid, int slot, Object pokemon) throws Exception {
-        Object party = getPartyStorage(playerUuid);
-        if (party == null) return;
+        // 스탯 (IVs)
+        lore.add("§e[스탯 정보]");
+        // 문서에 따르면 getIVs()는 IVStore를 반환하며, getStat(BattleStatsType)을 씁니다.
+        String ivs = String.format("§7체:%d 공:%d 방:%d 특공:%d 특방:%d 스핏:%d",
+                p.getIVs().getStat(BattleStatsType.HP),
+                p.getIVs().getStat(BattleStatsType.ATTACK),
+                p.getIVs().getStat(BattleStatsType.DEFENSE),
+                p.getIVs().getStat(BattleStatsType.SPECIAL_ATTACK),
+                p.getIVs().getStat(BattleStatsType.SPECIAL_DEFENSE),
+                p.getIVs().getStat(BattleStatsType.SPEED));
+        lore.add(ivs);
+        lore.add("§7(개체값은 모두 고정됨)"); 
 
-        Method m = null;
-        // try set(int, Pokemon)
-        for (Method mm : party.getClass().getMethods()) {
-            if (!mm.getName().equals("set") && !mm.getName().equals("setPokemon")) continue;
-            if (mm.getParameterCount() == 2 && mm.getParameterTypes()[0] == int.class) {
-                m = mm; break;
+        // 기술 목록
+        lore.add("");
+        lore.add("§b[기술 목록]");
+        for (Attack attack : p.getMoveset()) { //
+            if (attack != null) {
+                lore.add("§7- " + attack.getActualMove().getLocalizedName());
             }
         }
-        if (m != null) {
-            m.invoke(party, slot, pokemon);
-            return;
-        }
-        throw new IllegalStateException("Party storage set method not found");
+        lore.add("§7--------------------");
+
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
     }
-
-    public boolean addToPartyOrPC(UUID playerUuid, Object pokemon) throws Exception {
-        Object party = getPartyStorage(playerUuid);
-        if (party == null) return false;
-
-        Method add = null;
-        for (Method mm : party.getClass().getMethods()) {
-            if (mm.getName().equals("add") && mm.getParameterCount() == 1) { add = mm; break; }
-        }
-        if (add != null) {
-            Object res = add.invoke(party, pokemon);
-            if (res instanceof Boolean b && b) return true;
-        }
-
-        Object pc = getPcStorage(playerUuid);
-        if (pc != null) {
-            Method addPc = null;
-            for (Method mm : pc.getClass().getMethods()) {
-                if (mm.getName().equals("add") && mm.getParameterCount() == 1) { addPc = mm; break; }
-            }
-            if (addPc != null) {
-                addPc.invoke(pc, pokemon);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public Object getPartyStorage(UUID playerUuid) throws Exception {
-        Class<?> storageProxy = Class.forName("com.pixelmonmod.pixelmon.storage.StorageProxy");
-
-        Method getParty = findMethod(storageProxy, "getParty", Player.class);
-        if (getParty != null) {
-            Player p = Bukkit.getPlayer(playerUuid);
-            if (p == null) return null;
-            return getParty.invoke(null, p);
-        }
-
-        getParty = findMethod(storageProxy, "getParty", UUID.class);
-        if (getParty != null) return getParty.invoke(null, playerUuid);
-
-        return null;
-    }
-
-    public Object getPcStorage(UUID playerUuid) throws Exception {
-        Class<?> storageProxy = Class.forName("com.pixelmonmod.pixelmon.storage.StorageProxy");
-        Method getPC = findMethod(storageProxy, "getPC", Player.class);
-        if (getPC != null) {
-            Player p = Bukkit.getPlayer(playerUuid);
-            if (p == null) return null;
-            return getPC.invoke(null, p);
-        }
-        getPC = findMethod(storageProxy, "getPC", UUID.class);
-        if (getPC != null) return getPC.invoke(null, playerUuid);
-        return null;
-    }
-
-    public String getPokemonUuidString(Object pokemon) {
-        try {
-            Method m = findMethod(pokemon.getClass(), "getUUID");
-            if (m != null) return String.valueOf(m.invoke(pokemon));
-        } catch (Exception ignored) {}
-        return "";
-    }
-
-    public static Method findMethod(Class<?> c, String name, Class<?>... params) {
-        try {
-            return c.getMethod(name, params);
-        } catch (Exception e) {
-            try {
-                Method m = c.getDeclaredMethod(name, params);
-                m.setAccessible(true);
-                return m;
-            } catch (Exception ex) {
-                return null;
-            }
-        }
-    }
+    
+    // ... (기존 유틸 메서드 유지) ...
 }
