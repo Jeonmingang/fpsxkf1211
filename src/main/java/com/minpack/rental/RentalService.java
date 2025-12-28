@@ -5,6 +5,7 @@ import com.minpack.rental.bridge.PokemonNbt;
 import com.minpack.rental.data.ActiveRental;
 import com.minpack.rental.data.Listing;
 import com.minpack.rental.data.RentalRepository;
+import com.minpack.rental.util.Msg;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -21,6 +22,9 @@ public final class RentalService {
     private final Map<Long, ActiveRental> active = new LinkedHashMap<>();
     private final Map<String, Long> idxListingPokemon = new HashMap<>();
     private final Map<String, Long> idxActivePokemon = new HashMap<>();
+
+    // [추가] 유저별 알림 설정 (UUID -> 초 단위 간격, 0이면 끔)
+    private final Map<UUID, Integer> notificationSettings = new HashMap<>();
 
     public RentalService(PixelmonRentalMarketPlugin plugin) {
         this.plugin = plugin;
@@ -68,6 +72,13 @@ public final class RentalService {
         return out;
     }
 
+    // [추가] 특정 유저가 빌리고 있는 포켓몬 목록 조회 (GUI용)
+    public List<ActiveRental> getRenterRentals(UUID renter) {
+        List<ActiveRental> out = new ArrayList<>();
+        for (ActiveRental r : active.values()) if (r.renter.equals(renter)) out.add(r);
+        return out;
+    }
+
     public boolean hasAnyActiveRental(UUID renter) {
         for (ActiveRental r : active.values()) if (r.renter.equals(renter)) return true;
         return false;
@@ -75,6 +86,17 @@ public final class RentalService {
 
     public boolean isPokemonListedOrActive(String pokemonUuid) {
         return idxListingPokemon.containsKey(pokemonUuid) || idxActivePokemon.containsKey(pokemonUuid);
+    }
+
+    // [추가] 알림 간격 설정 (0 = 끔)
+    public void setNotificationInterval(Player p, int seconds) {
+        if (seconds <= 0) notificationSettings.remove(p.getUniqueId());
+        else notificationSettings.put(p.getUniqueId(), seconds);
+    }
+
+    public int getNotificationInterval(UUID uuid) {
+        // 기본값 600초(10분), 설정 없으면 기본값 사용
+        return notificationSettings.getOrDefault(uuid, 600);
     }
 
     public Listing registerListing(Player owner, int slot0, long rentalDurationSeconds, double price) throws Exception {
@@ -148,6 +170,7 @@ public final class RentalService {
         ActiveRental r = new ActiveRental();
         r.id = l.id;
         r.owner = l.owner;
+        // ActiveRental에는 ownerName 필드가 없으므로 저장하지 않음 (필요 시 조회)
         r.renter = buyer.getUniqueId();
         r.renterName = buyer.getName();
         r.pokemonUuid = l.pokemonUuid;
@@ -172,6 +195,7 @@ public final class RentalService {
     public void tickExpiry() {
         long t = now();
 
+        // 1. 만료된 매물 처리
         List<Long> expiredListings = new ArrayList<>();
         for (Listing l : listings.values()) if (l.isExpired(t)) expiredListings.add(l.id);
         for (Long id : expiredListings) {
@@ -187,11 +211,52 @@ public final class RentalService {
             } catch (Exception ignored) {}
         }
 
+        // 2. 만료된 렌탈 종료
         List<Long> ended = new ArrayList<>();
         for (ActiveRental r : active.values()) if (!r.finished && r.isEnded(t)) ended.add(r.id);
         for (Long id : ended) {
             try { endRental(id); } catch (Exception ignored) {}
         }
+
+        // [추가] 3. 알림 메시지 전송 체크 (매 초 실행됨)
+        tickNotifications(t);
+    }
+
+    // [추가] 알림 로직
+    private void tickNotifications(long now) {
+        for (ActiveRental r : active.values()) {
+            if (r.finished) continue;
+
+            int interval = getNotificationInterval(r.renter);
+            if (interval <= 0) continue; // 알림 끔
+
+            long remaining = r.endEpochSec - now;
+            if (remaining <= 0) continue;
+
+            // 설정한 시간 간격마다 알림
+            if (remaining % interval == 0) {
+                Player p = Bukkit.getPlayer(r.renter);
+                if (p != null && p.isOnline()) {
+                    String ownerName = Bukkit.getOfflinePlayer(r.owner).getName();
+                    if (ownerName == null) ownerName = "Unknown";
+
+                    p.sendMessage("");
+                    p.sendMessage(Msg.color("&b[렌탈 알림] &f포켓몬 대여 정보"));
+                    p.sendMessage(Msg.color("&7 - 주인: &e" + ownerName));
+                    p.sendMessage(Msg.color("&7 - 남은 시간: &c" + formatTime(remaining)));
+                    p.sendMessage(Msg.color("&7 - 비용: &a" + r.price + "원"));
+                    p.sendMessage("");
+                }
+            }
+        }
+    }
+
+    private String formatTime(long sec) {
+        long h = sec / 3600;
+        long m = (sec % 3600) / 60;
+        long s = sec % 60;
+        if (h > 0) return h + "시간 " + m + "분";
+        return m + "분 " + s + "초";
     }
 
     public void endRental(long id) throws Exception {
@@ -207,6 +272,13 @@ public final class RentalService {
         r.finished = true;
         active.remove(id);
         idxActivePokemon.remove(r.pokemonUuid);
+
+        // 메시지 전송
+        Player owner = Bukkit.getPlayer(r.owner);
+        if (owner != null) owner.sendMessage(Msg.color("&a[렌탈] &f대여해준 포켓몬(ID:" + id + ")이 반환되었습니다."));
+
+        Player renter = Bukkit.getPlayer(r.renter);
+        if (renter != null) renter.sendMessage(Msg.color("&c[렌탈] &f대여 기간이 만료되어 포켓몬(ID:" + id + ")이 회수되었습니다."));
 
         if (plugin.getConfig().getBoolean("discord.notify_on_return", true)) {
             plugin.getDiscord().sendAsync("🟨 렌탈 종료 반환: ID " + id);

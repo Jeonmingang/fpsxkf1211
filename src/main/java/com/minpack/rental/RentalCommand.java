@@ -22,18 +22,49 @@ public final class RentalCommand implements CommandExecutor {
         if (!(sender instanceof Player p)) { Msg.send(sender, "only_player"); return true; }
 
         try {
+            // 1. /렌탈 (거래소 오픈)
             if (args.length == 0) {
                 new MarketGui(plugin).open(p, 0);
                 Msg.send(p, "open_market");
                 return true;
             }
 
+            // 2. /렌탈 목록 (내 목록 오픈)
             if (args[0].equalsIgnoreCase("목록")) {
                 new MyListingsGui(plugin).open(p);
                 Msg.send(p, "open_my");
                 return true;
             }
 
+            // [추가] 3. /렌탈 알림 <켜기|끄기> [초]
+            if (args[0].equalsIgnoreCase("알림")) {
+                if (args.length < 2) {
+                    p.sendMessage(Msg.color("&c사용법: /렌탈 알림 <켜기|끄기> [초]"));
+                    return true;
+                }
+                if (args[1].equalsIgnoreCase("끄기")) {
+                    plugin.getRentalService().setNotificationInterval(p, 0);
+                    p.sendMessage(Msg.color("&c렌탈 남은 시간 알림을 껐습니다."));
+                    return true;
+                }
+                if (args[1].equalsIgnoreCase("켜기")) {
+                    int sec = 600; // 기본값 10분(600초)
+                    if (args.length >= 3) {
+                        try {
+                            sec = Integer.parseInt(args[2]);
+                            if (sec < 10) sec = 10; // 최소 10초 제한 (도배 방지)
+                        } catch(Exception ignored){
+                            p.sendMessage(Msg.color("&c시간은 숫자로 입력해주세요."));
+                            return true;
+                        }
+                    }
+                    plugin.getRentalService().setNotificationInterval(p, sec);
+                    p.sendMessage(Msg.color("&b렌탈 알림이 &e" + sec + "초&b마다 울리도록 설정되었습니다."));
+                    return true;
+                }
+            }
+
+            // 4. /렌탈 등록 취소 (구 버전 명령어 호환)
             if (args[0].equalsIgnoreCase("등록") && args.length >= 2 && args[1].equalsIgnoreCase("취소")) {
                 if (args.length < 3) return false;
                 long id = Long.parseLong(args[2]);
@@ -42,6 +73,7 @@ public final class RentalCommand implements CommandExecutor {
                 return true;
             }
 
+            // 5. /렌탈 등록 <슬롯> <시간> <분> <초> <가격>
             if (args[0].equalsIgnoreCase("등록")) {
                 if (args.length < 6) return false;
                 int slot = Integer.parseInt(args[1]);
@@ -54,6 +86,7 @@ public final class RentalCommand implements CommandExecutor {
                 return true;
             }
 
+            // 6. /렌탈 등록취소 <ID>
             if (args[0].equalsIgnoreCase("등록취소")) {
                 if (args.length < 2) return false;
                 long id = Long.parseLong(args[1]);
@@ -61,6 +94,8 @@ public final class RentalCommand implements CommandExecutor {
                 if (ok) p.sendMessage(Msg.fmt("cancelled","ID",String.valueOf(id)));
                 return true;
             }
+
+            // --- 관리자 명령어 ---
 
             if (args[0].equalsIgnoreCase("등록시간")) {
                 if (!p.hasPermission("rental.admin")) { Msg.send(p,"no_permission"); return true; }

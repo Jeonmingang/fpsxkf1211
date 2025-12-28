@@ -5,6 +5,7 @@ import com.minpack.rental.data.RentalRepository;
 import com.minpack.rental.discord.DiscordWebhook;
 import com.minpack.rental.gui.GuiListener;
 import com.minpack.rental.security.CommandBlocker;
+import com.minpack.rental.security.SecurityListener; // [중요] 1. 임포트 추가
 import com.minpack.rental.service.RentalService;
 import com.minpack.rental.util.Msg;
 import net.milkbowl.vault.economy.Economy;
@@ -21,6 +22,9 @@ public final class PixelmonRentalMarketPlugin extends JavaPlugin {
     private DiscordWebhook discord;
     private PixelmonBridge pixelmon;
     private RentalService rentalService;
+
+    // [중요] 2. 리스너 변수 선언
+    private SecurityListener securityListener;
 
     public static PixelmonRentalMarketPlugin getInstance() { return instance; }
 
@@ -47,8 +51,14 @@ public final class PixelmonRentalMarketPlugin extends JavaPlugin {
         rentalService = new RentalService(this);
         rentalService.loadFromRepository(repository);
 
+        // 버킷(일반) 리스너 등록
         Bukkit.getPluginManager().registerEvents(new GuiListener(this), this);
         Bukkit.getPluginManager().registerEvents(new CommandBlocker(this), this);
+
+        // [중요] 3. 픽셀몬 보안 리스너 등록
+        // 이 코드가 있어야 배틀 후 복구, 삭제 방지 기능이 켜집니다.
+        securityListener = new SecurityListener(this);
+        securityListener.register();
 
         getCommand("렌탈").setExecutor(new RentalCommand(this));
         getCommand("렌탈").setTabCompleter(new RentalTab(this));
@@ -62,6 +72,11 @@ public final class PixelmonRentalMarketPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        // [중요] 4. 리스너 해제 (플러그인 꺼질 때 깔끔하게 정리)
+        if (securityListener != null) {
+            securityListener.unregister();
+        }
+
         if (rentalService != null) rentalService.flushToRepository(repository);
         if (repository != null) repository.save();
         getLogger().info("PixelmonRentalMarket disabled.");
