@@ -14,7 +14,11 @@ public final class PokemonNbt {
         Object tag = newCompoundTag();
         Object provider = lookupProvider();
 
-        Method write = pokemon.getClass().getMethod("writeToNBT", tag.getClass(), provider.getClass());
+        // [수정됨] provider.getClass() 대신 정확한 인터페이스 클래스를 로드합니다.
+        Class<?> registryAccessClass = Class.forName("net.minecraft.core.RegistryAccess");
+
+        // [수정됨] writeToNBT(CompoundTag, RegistryAccess) 메서드를 찾습니다.
+        Method write = pokemon.getClass().getMethod("writeToNBT", tag.getClass(), registryAccessClass);
         write.invoke(pokemon, tag, provider);
 
         byte[] compressed = writeCompressed(tag);
@@ -27,13 +31,18 @@ public final class PokemonNbt {
         Object provider = lookupProvider();
 
         Class<?> factory = Class.forName("com.pixelmonmod.pixelmon.api.pokemon.PokemonFactory");
+        // [개선됨] create 메서드를 찾을 때 더 정확하게 파라미터 타입을 체크합니다.
         for (Method m : factory.getMethods()) {
             if (!m.getName().equals("create")) continue;
-            if (m.getParameterCount() == 2 && m.getParameterTypes()[0].getName().endsWith("CompoundTag")) {
+            Class<?>[] params = m.getParameterTypes();
+            // 파라미터가 2개이고 (CompoundTag, RegistryAccess) 형태인 메서드를 찾음
+            if (params.length == 2
+                    && params[0].getName().endsWith("CompoundTag")
+                    && params[1].getName().endsWith("RegistryAccess")) {
                 return m.invoke(null, tag, provider);
             }
         }
-        throw new IllegalStateException("PokemonFactory.create not found");
+        throw new IllegalStateException("PokemonFactory.create method not found");
     }
 
     private static Object newCompoundTag() throws Exception {
@@ -44,6 +53,7 @@ public final class PokemonNbt {
     private static Object lookupProvider() throws Exception {
         Object mcServer = getMinecraftServer();
         if (mcServer == null) throw new IllegalStateException("NMS server not available");
+        // registryAccess() 메서드 호출
         Method m = mcServer.getClass().getMethod("registryAccess");
         return m.invoke(mcServer);
     }
@@ -62,6 +72,7 @@ public final class PokemonNbt {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         Class<?> nbtIo = Class.forName("net.minecraft.nbt.NbtIo");
         Method write = null;
+        // writeCompressed(CompoundTag, OutputStream) 찾기
         for (Method m : nbtIo.getMethods()) {
             if (m.getName().equals("writeCompressed") && m.getParameterCount() == 2) { write = m; break; }
         }
@@ -74,6 +85,7 @@ public final class PokemonNbt {
         ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
         Class<?> nbtIo = Class.forName("net.minecraft.nbt.NbtIo");
         Method read = null;
+        // readCompressed(InputStream) 찾기
         for (Method m : nbtIo.getMethods()) {
             if (m.getName().equals("readCompressed") && m.getParameterCount() == 1) { read = m; break; }
         }
