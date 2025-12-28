@@ -198,7 +198,9 @@ public final class RentalService {
         ActiveRental r = active.get(id);
         if (r == null || r.finished) return;
 
+        // 대여자가 파티/PC 어디에 넣었든 전부 회수
         removePokemonByUuidFromParty(r.renter, r.pokemonUuid);
+        plugin.getPixelmon().removeFromPCByUuid(r.renter, r.pokemonUuid);
         Object pokemon = PokemonNbt.fromBase64(r.pokemonNbtB64);
         plugin.getPixelmon().addToPartyOrPC(r.owner, pokemon);
 
@@ -213,12 +215,11 @@ public final class RentalService {
 
     private void removePokemonByUuidFromParty(UUID uuid, String pokeUuid) {
         try {
-            for (int i=0;i<6;i++) {
+            for (int i = 0; i < 6; i++) {
                 Object p = plugin.getPixelmon().getPartyPokemon(uuid, i);
                 if (p == null) continue;
                 if (pokeUuid.equals(plugin.getPixelmon().getPokemonUuidString(p))) {
                     plugin.getPixelmon().setPartyPokemon(uuid, i, null);
-                    return;
                 }
             }
         } catch (Exception ignored) {}
@@ -232,15 +233,33 @@ public final class RentalService {
     }
 
     private void enforceOne(ActiveRental r) throws Exception {
+        // 렌탈 포켓몬이 파티/PC에서 이동되거나 변형되어도 "항상" 스냅샷 상태로 유지
         int slotFound = -1;
-        for (int i=0;i<6;i++) {
+        for (int i = 0; i < 6; i++) {
             Object p = plugin.getPixelmon().getPartyPokemon(r.renter, i);
             if (p == null) continue;
-            if (r.pokemonUuid.equals(plugin.getPixelmon().getPokemonUuidString(p))) { slotFound = i; break; }
+            if (!r.pokemonUuid.equals(plugin.getPixelmon().getPokemonUuidString(p))) continue;
+
+            if (slotFound < 0) {
+                slotFound = i;
+            } else {
+                // 듀프 방지: 동일 UUID가 여러 슬롯에 있으면 추가분 제거
+                plugin.getPixelmon().setPartyPokemon(r.renter, i, null);
+            }
         }
-        if (slotFound < 0) return;
 
         Object snapshot = PokemonNbt.fromBase64(r.pokemonNbtB64);
-        plugin.getPixelmon().setPartyPokemon(r.renter, slotFound, snapshot);
+
+        // 듀프/숨김 방지: PC에 같은 UUID가 남아있으면 제거
+        plugin.getPixelmon().removeFromPCByUuid(r.renter, r.pokemonUuid);
+
+        if (slotFound >= 0) {
+            // 파티에 있으면 해당 슬롯을 스냅샷으로 덮어쓰기
+            plugin.getPixelmon().setPartyPokemon(r.renter, slotFound, snapshot);
+            return;
+        }
+
+        // 파티에서 사라졌으면(PC로 옮김/삭제 시도 등) 스냅샷을 다시 지급
+        plugin.getPixelmon().addToPartyOrPC(r.renter, snapshot);
     }
 }
