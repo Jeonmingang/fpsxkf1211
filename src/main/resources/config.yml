@@ -1,0 +1,45 @@
+discord:
+  webhook_url: ""
+  notify_on_register: true
+  notify_on_buy: true
+  notify_on_return: true
+
+economy:
+  require_vault: true
+
+market:
+  listing_lifetime_seconds: 3600
+  page_size: 45
+  title: "&b&l렌탈 거래소"
+  my_title: "&e&l내 렌탈 목록"
+
+security:
+  audit_tick_seconds: 15
+  blocked_commands:
+    - "pb"
+    - "pokeedit"
+    - "trade"
+    - "tr"
+    - "daycare"
+    - "breed"
+    - "iv"
+    - "ev"
+    - "hypertrain"
+    - "htt"
+
+messages:
+  prefix: "&7[&b렌탈&7] "
+  only_player: "&c플레이어만 사용할 수 있습니다."
+  no_permission: "&c권한이 없습니다."
+  open_market: "&a렌탈 거래소를 열었습니다."
+  open_my: "&a내 렌탈 목록을 열었습니다."
+  invalid_slot: "&c슬롯은 1~6 입니다."
+  slot_empty: "&c해당 슬롯에 포켓몬이 없습니다."
+  already_listed: "&c이미 렌탈로 등록된 포켓몬입니다."
+  registered: "&a등록 완료! ID: &e{ID}&a / 가격: &e{PRICE}&a"
+  cancelled: "&e등록(ID {ID})을 취소했습니다."
+  bought: "&a구매 완료! 대여 시간: &e{DUR}&a초"
+  not_enough_money: "&c돈이 부족합니다."
+  returned_owner: "&a대여가 종료되어 주인에게 반환되었습니다. (ID {ID})"
+  blocked_rental_command: "&c렌탈 포켓몬 상태에서는 이 명령어를 사용할 수 없습니다."
+  set_listing_time: "&a거래소 등록 유지 시간이 &e{SEC}&a초로 설정되었습니다."

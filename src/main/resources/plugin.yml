@@ -1,0 +1,14 @@
+name: PixelmonRentalMarket
+main: com.minpack.rental.PixelmonRentalMarketPlugin
+version: 1.0.0
+api-version: "1.21"
+author: minpack
+softdepend: [Vault]
+commands:
+  렌탈:
+    description: 렌탈 거래소
+    usage: /렌탈
+    aliases: [rental]
+permissions:
+  rental.admin:
+    default: op
