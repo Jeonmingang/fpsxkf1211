@@ -6,12 +6,13 @@
   <groupId>com.minpack</groupId>
   <artifactId>synthesisbridge</artifactId>
   <version>1.0.0</version>
-  <name>SynthesisBridge</name>
+  <name>PixelmonRentalMarket</name>
 
   <properties>
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <pixelmon.version>9.3.13</pixelmon.version>
   </properties>
 
   <repositories>
@@ -23,6 +24,11 @@
     <repository>
       <id>jitpack.io</id>
       <url>https://jitpack.io</url>
+    </repository>
+
+    <repository>
+      <id>reforged-repo</id>
+      <url>https://repo.reforged.gg/repository/maven-releases/</url>
     </repository>
   </repositories>
 
@@ -44,9 +50,8 @@
     <dependency>
         <groupId>com.pixelmonmod</groupId>
         <artifactId>pixelmon</artifactId>
-        <version>9.3.13</version>
-        <scope>system</scope>
-        <systemPath>${project.basedir}/libs/Pixelmon-1.20.1-9.3.13-universal.jar</systemPath>
+        <version>${pixelmon.version}</version>
+        <scope>provided</scope>
     </dependency>
   </dependencies>
 
