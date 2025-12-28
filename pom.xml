@@ -12,6 +12,7 @@
   <properties>
     <java.version>21</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <pixelmon.version>9.1.10</pixelmon.version> 
   </properties>
 
   <repositories>
@@ -21,13 +22,13 @@
     </repository>
     
     <repository>
-      <id>sonatype</id>
-      <url>https://oss.sonatype.org/content/groups/public/</url>
-    </repository>
-    
-    <repository>
         <id>jitpack.io</id>
         <url>https://jitpack.io</url>
+    </repository>
+
+    <repository>
+        <id>reforged-repo</id>
+        <url>https://repo.reforged.gg/</url>
     </repository>
   </repositories>
 
@@ -43,6 +44,13 @@
         <groupId>com.github.MilkBowl</groupId>
         <artifactId>VaultAPI</artifactId>
         <version>1.7</version>
+        <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+        <groupId>com.pixelmonmod</groupId>
+        <artifactId>pixelmon</artifactId>
+        <version>${pixelmon.version}</version>
         <scope>provided</scope>
     </dependency>
   </dependencies>
