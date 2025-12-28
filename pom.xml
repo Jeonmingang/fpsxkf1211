@@ -12,7 +12,6 @@
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <pixelmon.version>9.3.13</pixelmon.version>
   </properties>
 
   <repositories>
@@ -24,11 +23,6 @@
     <repository>
       <id>jitpack.io</id>
       <url>https://jitpack.io</url>
-    </repository>
-
-    <repository>
-      <id>reforged-repo</id>
-      <url>https://repo.reforged.gg/repository/maven-releases/</url>
     </repository>
   </repositories>
 
@@ -50,8 +44,9 @@
     <dependency>
         <groupId>com.pixelmonmod</groupId>
         <artifactId>pixelmon</artifactId>
-        <version>${pixelmon.version}</version>
-        <scope>provided</scope>
+        <version>9.3.13</version>
+        <scope>system</scope>
+        <systemPath>C:/Users/com/Desktop/사리 1.21.1 (velocity) 프록시/사리 1.21.1/mods/Pixelmon-1.21.1-9.3.13-universal.jar</systemPath>
     </dependency>
   </dependencies>
 
