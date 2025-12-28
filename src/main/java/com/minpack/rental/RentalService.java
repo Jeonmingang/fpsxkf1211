@@ -322,6 +322,18 @@ public final class RentalService {
 
         Object snapshot = PokemonNbt.fromBase64(r.pokemonNbtB64);
 
+        // [보안 강화] 온라인 유저 전체에서 동일 UUID 듀프를 제거
+        // - 트레이드/드랍/기타 방법으로 다른 사람에게 넘어간 경우(온라인 한정) 즉시 회수
+        // - 오프라인 유저의 PC까지 전수검사는 비용이 크므로 여기서는 온라인만 처리
+        try {
+            for (org.bukkit.entity.Player online : Bukkit.getOnlinePlayers()) {
+                java.util.UUID ou = online.getUniqueId();
+                if (ou.equals(r.renter)) continue;
+                plugin.getPixelmon().removeFromPartyByUuid(ou, r.pokemonUuid);
+                plugin.getPixelmon().removeFromPCByUuid(ou, r.pokemonUuid);
+            }
+        } catch (Throwable ignored) {}
+
         // 듀프/숨김 방지: PC에 같은 UUID가 남아있으면 제거
         plugin.getPixelmon().removeFromPCByUuid(r.renter, r.pokemonUuid);
 
