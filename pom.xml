@@ -41,7 +41,13 @@
         <scope>provided</scope>
     </dependency>
 
-    <!-- Pixelmon 의존성은 런타임에만 존재하며, 빌드/CI에서는 리플렉션으로 접근합니다. -->
+    <dependency>
+        <groupId>com.pixelmonmod</groupId>
+        <artifactId>pixelmon</artifactId>
+        <version>9.3.13</version>
+        <scope>system</scope>
+        <systemPath>${project.basedir}/libs/Pixelmon-1.21.1-9.3.13-universal.jar</systemPath>
+    </dependency>
   </dependencies>
 
   <build>
