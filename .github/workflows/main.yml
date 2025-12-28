@@ -7,14 +7,28 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout (with LFS)
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      # (선택) 혹시 환경에 따라 LFS 자동 pull이 약할 때 대비
+      - name: Pull LFS objects
+        run: git lfs pull
+
+      - name: Verify Pixelmon jar exists
+        run: |
+          ls -lh libs/Pixelmon-1.21.1-9.3.13-universal.jar
+
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
+
       - name: Build with Maven
         run: mvn -B -q package
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
